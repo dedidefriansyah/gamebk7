@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tebak Ekspresi Wajah & Kuis Emosi</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Fredoka', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        }
+                    },
+                    animation: {
+                        'bounce-short': 'bounce 0.5s ease-in-out 1',
+                        'pulse-fast': 'pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'wiggle': 'wiggle 0.3s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        wiggle: {
+                            '0%, 100%': { transform: 'rotate(-3deg)' },
+                            '50%': { transform: 'rotate(3deg)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Fredoka', sans-serif;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        /* Glassmorphism Effect */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+        }
+
+        .btn-option {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 0 #cbd5e1;
+        }
+
+        .btn-option:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #cbd5e1;
+        }
+
+        .btn-action {
+            box-shadow: 0 5px 0 #0369a1;
+        }
+        .btn-action:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 0 #0369a1;
+        }
+
+        /* Confetti Effect Canvas */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 min-h-screen text-slate-800 flex flex-col justify-between items-center p-3 sm:p-6 overflow-x-hidden">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- Top Navigation / Header Bar -->
+    <header class="w-full max-w-md flex justify-between items-center mb-2 z-10">
+        <div class="flex items-center gap-2 bg-white/90 px-3 py-1.5 rounded-full shadow-md">
+            <i class="fa-solid fa-face-smile text-amber-500 text-xl"></i>
+            <span class="font-bold text-slate-700 text-sm sm:text-base">EkspresiFun</span>
+        </div>
+
+        <button id="sound-toggle-btn" onclick="toggleSound()" class="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-slate-700 shadow-md active:scale-95 transition-transform">
+            <i class="fa-solid fa-volume-high text-lg" id="sound-icon"></i>
+        </button>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="w-full max-w-md flex-1 flex flex-col justify-center items-center my-auto z-10">
+
+        <!-- SCREEN 1: MENU UTAMA -->
+        <div id="screen-menu" class="glass-card w-full rounded-3xl p-6 shadow-2xl text-center space-y-6">
+            <div class="space-y-2">
+                <div class="inline-block p-4 bg-amber-100 rounded-full text-amber-500 mb-1 animate-bounce">
+                    <i class="fa-solid fa-masks-theater text-5xl"></i>
+                </div>
+                <h1 class="text-3xl font-extrabold text-slate-800 tracking-wide">Tebak Ekspresi!</h1>
+                <p class="text-slate-600 text-sm">Uji seberapa jago kamu mengenali emosi dan perasaan orang lain.</p>
+            </div>
+
+            <div class="space-y-3 pt-2">
+                <button onclick="startGame('visual')" class="btn-action w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-4 px-6 rounded-2xl text-lg flex items-center justify-center gap-3 transition-all">
+                    <i class="fa-solid fa-eye text-2xl"></i>
+                    <span>Tebak Gambar Ekspresi</span>
+                </button>
+
+                <button onclick="startGame('scenario')" class="btn-action w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-4 px-6 rounded-2xl text-lg flex items-center justify-center gap-3 transition-all" style="box-shadow: 0 5px 0 #6b21a8;">
+                    <i class="fa-solid fa-brain text-2xl"></i>
+                    <span>Kuis Skenario Emosi</span>
+                </button>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-center justify-around text-amber-800 text-xs font-semibold">
+                <div><i class="fa-solid fa-trophy text-amber-500 text-base"></i> Skorsing: <span id="high-score-display">0</span></div>
+                <div><i class="fa-solid fa-star text-amber-500 text-base"></i> Level: Campuran</div>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: GAMEPLAY -->
+        <div id="screen-game" class="glass-card w-full rounded-3xl p-5 shadow-2xl hidden flex-col justify-between space-y-4">
+            
+            <!-- Game Header (Stats Bar) -->
+            <div class="flex justify-between items-center bg-slate-100/80 p-2.5 rounded-2xl border border-slate-200/60">
+                <!-- Score -->
+                <div class="flex items-center gap-2">
+                    <span class="bg-amber-400 text-slate-900 font-extrabold text-xs px-2.5 py-1 rounded-lg">SKOR</span>
+                    <span id="score-text" class="text-xl font-black text-slate-800">0</span>
+                </div>
+
+                <!-- Combo Counter -->
+                <div id="combo-badge" class="hidden items-center gap-1 bg-gradient-to-r from-orange-500 to-red-500 text-white font-black text-xs px-2.5 py-1 rounded-full animate-bounce">
+                    <i class="fa-solid fa-fire"></i>
+                    <span id="combo-text">2x Combo!</span>
+                </div>
+
+                <!-- Question Count -->
+                <div class="text-xs font-bold text-slate-500">
+                    Soal <span id="current-q-num" class="text-sky-600 text-sm font-extrabold">1</span>/<span id="total-q-num">10</span>
+                </div>
+            </div>
+
+            <!-- Timer Bar -->
+            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                <div id="timer-bar" class="bg-emerald-500 h-full w-full transition-all duration-100 ease-linear"></div>
+            </div>
+
+            <!-- Face Avatar / Question Card Container -->
+            <div class="flex flex-col items-center justify-center min-h-[220px] py-2">
+                <!-- SVG Avatar Container for Visual Mode -->
+                <div id="avatar-container" class="relative w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center drop-shadow-md">
+                    <!-- Dynamic SVG injected here -->
+                </div>
+
+                <!-- Question Text Container for Scenario Mode -->
+                <div id="scenario-container" class="hidden w-full text-center px-2 py-4">
+                    <span id="scenario-tag" class="inline-block bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full mb-3">Skenario Situasi</span>
+                    <p id="scenario-text" class="text-slate-800 font-bold text-base sm:text-lg leading-snug">...</p>
+                </div>
+            </div>
+
+            <!-- Feedback Overlay (Benar/Salah) -->
+            <div id="feedback-banner" class="opacity-0 transition-opacity duration-200 text-center py-1.5 font-bold rounded-xl text-sm min-h-[28px]">
+                <!-- Feedback text dynamically added -->
+            </div>
+
+            <!-- Options Grid -->
+            <div id="options-container" class="grid grid-cols-2 gap-3 pt-1">
+                <!-- 4 Option Buttons dynamically generated -->
+            </div>
+        </div>
+
+        <!-- SCREEN 3: RESULT -->
+        <div id="screen-result" class="glass-card w-full rounded-3xl p-6 shadow-2xl text-center hidden space-y-6">
+            <div class="space-y-2">
+                <div id="result-icon-container" class="inline-block p-4 rounded-full text-amber-500 mb-1">
+                    <i id="result-icon" class="fa-solid fa-trophy text-6xl"></i>
+                </div>
+                <h2 id="result-title" class="text-2xl font-extrabold text-slate-800">Luar Biasa!</h2>
+                <p id="result-subtitle" class="text-slate-600 text-sm">Kamu sangat pintar membaca perasaan orang lain!</p>
+            </div>
+
+            <!-- Score Cards -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-sky-50 border border-sky-200 rounded-2xl p-3">
+                    <p class="text-xs text-sky-600 font-bold">SKOR AKHIR</p>
+                    <p id="final-score" class="text-3xl font-black text-sky-700">0</p>
+                </div>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
+                    <p class="text-xs text-emerald-600 font-bold">AKURASI</p>
+                    <p id="final-accuracy" class="text-3xl font-black text-emerald-700">0%</p>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="space-y-3 pt-2">
+                <button onclick="restartGame()" class="btn-action w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 px-6 rounded-2xl text-lg flex items-center justify-center gap-2" style="box-shadow: 0 5px 0 #047857;">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Main Lagi</span>
+                </button>
+                
+                <button onclick="showMenu()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 px-6 rounded-2xl text-sm transition-all">
+                    Kembali ke Menu Utama
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full max-w-md text-center py-2 text-white/80 text-xs font-medium z-10">
+        Kuis Interaktif Ekspresi & Emosi &copy; 2026
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        /* ==========================================
+           DATA DEFINITION: EMOTIONS & EXPRESSIONS
+           ========================================== */
+        
+        // Dictionary containing all SVGs and descriptions
+        const EMOTIONS = {
+            senang: {
+                name: "Senang / Bahagia",
+                emoji: "😊",
+                color: "#fef08a", // Yellow
+                border: "#f59e0b",
+                svg: `
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                        <circle cx="50" cy="50" r="45" fill="#fde047" stroke="#eab308" stroke-width="4"/>
+                        <!-- Eyes -->
+                        <path d="M 28 38 Q 35 28 42 38" stroke="#1e293b" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+                        <path d="M 58 38 Q 65 28 72 38" stroke="#1e293b" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+                        <!-- Cheeks -->
+                        <circle cx="26" cy="48" r="6" fill="#f43f5e" opacity="0.4"/>
+                        <circle cx="74" cy="48" r="6" fill="#f43f5e" opacity="0.4"/>
+                        <!-- Mouth -->
+                        <path d="M 30 55 Q 50 78 70 55" stroke="#1e293b" stroke-width="5" stroke-linecap="round" fill="none"/>
+                    </svg>`
+            },
+            sedih: {
+                name: "Sedih",
+                emoji: "😢",
+                color: "#bfdbfe", // Blue
+                border: "#3b82f6",
+                svg: `
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                        <circle cx="50" cy="50" r="45" fill="#93c5fd" stroke="#3b82f6" stroke-width="4"/>
+                        <!-- Eyebrows -->
+                        <path d="M 25 32 Q 35 38 42 35" stroke="#1e293b" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+                        <path d="M 58 35 Q 65 38 75 32" stroke="#1e293b" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+                        <!-- Eyes -->
+                        <circle cx="34" cy="42" r="4" fill="#1e293b"/>
+                        <circle cx="66" cy="42" r="4" fill="#1e293b"/>
+                        <!-- Tear -->
+                        <path d="M 66 50 Q 69 58 66 62 Q 62 58 66 50" fill="#38bdf8"/>
+                        <!-- Mouth -->
+                        <path d="M 32 68 Q 50 50 68 68" stroke="#1e293b" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+                    </svg>`
+            },
+            marah: {
+                name: "Marah",
+                emoji: "😡",
+                color: "#fca5a5", // Red
+                border: "#ef4444",
+                svg: `
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                        <circle cx="50" cy="50" r="45" fill="#f87171" stroke="#dc2626" stroke-width="4"/>
+                        <!-- Angry Eyebrows -->
+                        <path d="M 25 32 L 43 42" stroke="#1e293b" stroke-width="5" stroke-linecap="round"/>
+                        <path d="M 75 32 L 57 42" stroke="#1e293b" stroke-width="5" stroke-linecap="round"/>
+                        <!-- Eyes -->
+                        <circle cx="35" cy="48" r="4" fill="#1e293b"/>
+                        <circle cx="65" cy="48" r="4" fill="#1e293b"/>
+                        <!-- Mouth -->
+                        <path d="M 32 68 Q 50 54 68 68" stroke="#1e293b" stroke-width="5" stroke-linecap="round" fill="none"/>
+                    </svg>`
+            },
+            terkejut: {
+                name: "Terkejut / Kaget",
+                emoji: "😲",
+                color: "#fed7aa", // Orange
+                border: "#f97316",
+                svg: `
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                        <circle cx="50" cy="50" r="45" fill="#fdba74" stroke="#ea580c" stroke-width="4"/>
+                        <!-- Eyebrows high -->
+                        <path d="M 25 25 Q 34 18 42 25" stroke="#1e293b" stroke-width="4" stroke-linecap="round" fill="none"/>
+                        <path d="M 58 25 Q 66 18 75 25" stroke="#1e293b" stroke-width="4" stroke-linecap="round" fill="none"/>
+                        <!-- Eyes wide -->
+                        <circle cx="34" cy="38" r="7" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+                        <circle cx="34" cy="38" r="3" fill="#1e293b"/>
+                        <circle cx="66" cy="38" r="7" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>
+                        <circle cx="66" cy="38" r="3" fill="#1e293b"/>
+                        <!-- Mouth Open O -->
+                        <ellipse cx="50" cy="65" rx="12" ry="16" fill="#1e293b"/>
+                    </svg>`
+            },
+            bingung: {
+                name: "Bingung",
+                emoji: "😕",
+                color: "#e9d5ff", // Purple
+                border: "#a855f7",
+                svg: `
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                        <circle cx="50" cy="50" r="45" fill="#c084fc" stroke="#9333ea" stroke-width="4"/>
+                        <!-- Eyebrows mismatched -->
+                        <path d="M 25 35 Q 34 26 42 32" stroke="#1e293b" stroke-width="4" stroke-linecap="round" fill="none"/>
+                        <path d="M 58 26 Q 66 32 75 28" stroke="#1e293b" stroke-width="4" stroke-linecap="round" fill="none"/>
+                        <!-- Eyes mismatched -->
+                        <circle cx="34" cy="42" r="5" fill="#1e293b"/>
+                        <circle cx="66" cy="40" r="3" fill="#1e293b"/>
+                        <!-- Squiggly Mouth -->
+                        <path d="M 32 64 Q 42 58 50 64 T 68 62" stroke="#1e293b" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+                    </svg>`
+            },
+            takut: {
+                name: "Takut / Cemas",
+                emoji: "Fear",
+                color: "#ddd6fe",
+                border: "#7c3aed",
+                svg: `
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                        <circle cx="50" cy="50" r="45" fill="#a78bfa" stroke="#6d28d9" stroke-width="4"/>
+                        <!-- Sweat Drop -->
+                        <path d="M 75 20 Q 80 28 75 32 Q 70 28 75 20" fill="#38bdf8"/>
+                        <!-- Eyebrows -->
+                        <path d="M 25 30 Q 35 36 42 28" stroke="#1e293b" stroke-width="4" fill="none"/>
+                        <path d="M 58 28 Q 65 36 75 30" stroke="#1e293b" stroke-width="4" fill="none"/>
+                        <!-- Eyes -->
+                        <circle cx="34" cy="42" r="6" fill="#fff" stroke="#1e293b" stroke-width="2"/>
+                        <circle cx="34" cy="42" r="2" fill="#1e293b"/>
+                        <circle cx="66" cy="42" r="6" fill="#fff" stroke="#1e293b" stroke-width="2"/>
+                        <circle cx="66" cy="42" r="2" fill="#1e293b"/>
+                        <!-- Grimace Mouth -->
+                        <rect x="32" y="60" width="36" height="12" rx="4" fill="#fff" stroke="#1e293b" stroke-width="3"/>
+                        <line x1="44" y1="60" x2="44" y2="72" stroke="#1e293b" stroke-width="2"/>
+                        <line x1="56" y1="60" x2="56" y2="72" stroke="#1e293b" stroke-width="2"/>
+                    </svg>`
+            },
+            malu: {
+                name: "Malu / Tersipu",
+                emoji: "😳",
+                color: "#fbcfe8", // Pink
+                border: "#ec4899",
+                svg: `
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                        <circle cx="50" cy="50" r="45" fill="#f472b6" stroke="#db2777" stroke-width="4"/>
+                        <!-- Big Soft Eyes Looking Down/Side -->
+                        <circle cx="34" cy="42" r="5" fill="#1e293b"/>
+                        <circle cx="66" cy="42" r="5" fill="#1e293b"/>
+                        <circle cx="32" cy="40" r="1.5" fill="#fff"/>
+                        <circle cx="64" cy="40" r="1.5" fill="#fff"/>
+                        <!-- Big Cheeks -->
+                        <ellipse cx="28" cy="52" rx="9" ry="6" fill="#e11d48" opacity="0.5"/>
+                        <ellipse cx="72" cy="52" rx="9" ry="6" fill="#e11d48" opacity="0.5"/>
+                        <!-- Shy Smile -->
+                        <path d="M 38 62 Q 50 68 62 62" stroke="#1e293b" stroke-width="4" stroke-linecap="round" fill="none"/>
+                    </svg>`
+            },
+            jijik: {
+                name: "Jijik / Kecewa",
+                emoji: "🤢",
+                color: "#bbf7d0", // Green
+                border: "#22c55e",
+                svg: `
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                        <circle cx="50" cy="50" r="45" fill="#4ade80" stroke="#16a34a" stroke-width="4"/>
+                        <!-- Squinting Eyes -->
+                        <path d="M 28 38 L 40 42" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+                        <path d="M 72 38 L 60 42" stroke="#1e293b" stroke-width="4" stroke-linecap="round"/>
+                        <!-- Wrinkled Nose -->
+                        <path d="M 46 48 L 50 44 L 54 48" stroke="#1e293b" stroke-width="3" fill="none"/>
+                        <!-- Wavy Tongue/Mouth -->
+                        <path d="M 32 64 Q 40 70 50 60 T 68 66" stroke="#1e293b" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+                    </svg>`
+            }
+        };
+
+        // Scenario Database for Scenario Mode
+        const SCENARIOS = [
+            {
+                text: "Budi menerima hadiah ulang tahun berupa mainan yang sudah lama ia impikan. Bagaimana perasaan Budi?",
+                correct: "senang"
+            },
+            {
+                text: "Es krim milik Sinta jatuh ke tanah sebelum sempat ia makan. Apa ekspresi yang terlihat di wajah Sinta?",
+                correct: "sedih"
+            },
+            {
+                text: "Tiba-tiba terdengar suara petir yang sangat keras di malam hari. Apa reaksi perasaan Doni?",
+                correct: "terkejut"
+            },
+            {
+                text: "Seseorang menyenggol dan merusak mainan Dito tanpa meminta maaf. Dito merasa...",
+                correct: "marah"
+            },
+            {
+                text: "Rina harus maju ke depan panggung dan dipuji oleh seluruh gurunya. Rina merasa...",
+                correct: "malu"
+            },
+            {
+                text: "Danish diminta menyelesaikan soal matematika yang sangat rumit dan belum pernah dipelajari.",
+                correct: "bingung"
+            },
+            {
+                text: "Saat berjalan di lorong gelap sendirian, Andi mendengar suara aneh di belakangnya.",
+                correct: "takut"
+            },
+            {
+                text: "Rian mencium aroma makanan basi yang sudah berjamur di dapur.",
+                correct: "jijik"
+            }
+        ];
+
+        /* ==========================================
+           GAME STATE & VARIABLES
+           ========================================== */
+        let currentGameMode = 'visual'; // 'visual' or 'scenario'
+        let currentQuestionIndex = 0;
+        let totalQuestions = 8;
+        let score = 0;
+        let combo = 0;
+        let correctAnswersCount = 0;
+        let soundEnabled = true;
+        let timerInterval = null;
+        let timeLeft = 10; // Seconds per question
+        const maxTime = 10;
+        let currentCorrectKey = "";
+        let isAnsweringAllowed = false;
+        let highScore = localStorage.getItem('ekspresi_highscore') || 0;
+
+        // Web Audio API Context for Synth Sounds
+        let audioCtx = null;
+
+        /* ==========================================
+           AUDIO SYSTEM (SYNTHESIZED)
+           ========================================== */
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'correct') {
+                // Happy Arpeggio Sound
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'wrong') {
+                // Low Buzz Sound
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.setValueAtTime(130, now + 0.15);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } else if (type === 'click') {
+                // Short Click
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'win') {
+                // Fanfare sound
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(554.37, now + 0.12);
+                osc.frequency.setValueAtTime(659.25, now + 0.24);
+                osc.frequency.setValueAtTime(880, now + 0.36);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
+                osc.start(now);
+                osc.stop(now + 0.7);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-lg';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-lg text-slate-400';
+            }
+        }
+
+        /* ==========================================
+           NAVIGATION & SCREENS
+           ========================================== */
+        document.getElementById('high-score-display').innerText = highScore;
+
+        function showMenu() {
+            playSound('click');
+            clearInterval(timerInterval);
+            document.getElementById('screen-menu').classList.remove('hidden');
+            document.getElementById('screen-menu').classList.add('flex');
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('flex');
+            document.getElementById('screen-result').classList.add('hidden');
+            document.getElementById('screen-result').classList.remove('flex');
+            document.getElementById('high-score-display').innerText = localStorage.getItem('ekspresi_highscore') || 0;
+        }
+
+        function startGame(mode) {
+            playSound('click');
+            currentGameMode = mode;
+            score = 0;
+            combo = 0;
+            correctAnswersCount = 0;
+            currentQuestionIndex = 0;
+
+            document.getElementById('score-text').innerText = '0';
+            document.getElementById('combo-badge').classList.add('hidden');
+            document.getElementById('combo-badge').classList.remove('flex');
+
+            document.getElementById('screen-menu').classList.add('hidden');
+            document.getElementById('screen-menu').classList.remove('flex');
+            document.getElementById('screen-result').classList.add('hidden');
+            document.getElementById('screen-result').classList.remove('flex');
+            
+            document.getElementById('screen-game').classList.remove('hidden');
+            document.getElementById('screen-game').classList.add('flex');
+
+            // Setup mode visual elements
+            if (mode === 'visual') {
+                document.getElementById('avatar-container').classList.remove('hidden');
+                document.getElementById('scenario-container').classList.add('hidden');
+            } else {
+                document.getElementById('avatar-container').classList.add('hidden');
+                document.getElementById('scenario-container').classList.remove('hidden');
+            }
+
+            loadNextQuestion();
+        }
+
+        /* ==========================================
+           QUESTION GENERATOR LOGIC
+           ========================================== */
+        function loadNextQuestion() {
+            if (currentQuestionIndex >= totalQuestions) {
+                finishGame();
+                return;
+            }
+
+            currentQuestionIndex++;
+            document.getElementById('current-q-num').innerText = currentQuestionIndex;
+            document.getElementById('total-q-num').innerText = totalQuestions;
+
+            // Clear previous feedback banner
+            const feedback = document.getElementById('feedback-banner');
+            feedback.className = "opacity-0 transition-opacity duration-200 text-center py-1.5 font-bold rounded-xl text-sm min-h-[28px]";
+            feedback.innerText = "";
+
+            const keys = Object.keys(EMOTIONS);
+            let targetKey = "";
+
+            if (currentGameMode === 'visual') {
+                // Randomly pick an emotion
+                targetKey = keys[Math.floor(Math.random() * keys.length)];
+                currentCorrectKey = targetKey;
+
+                // Render SVG Avatar
+                const avatarContainer = document.getElementById('avatar-container');
+                avatarContainer.innerHTML = EMOTIONS[targetKey].svg;
+                avatarContainer.className = "relative w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center drop-shadow-md animate-bounce-short";
+            } else {
+                // Scenario mode
+                const scenario = SCENARIOS[(currentQuestionIndex - 1) % SCENARIOS.length];
+                targetKey = scenario.correct;
+                currentCorrectKey = targetKey;
+
+                document.getElementById('scenario-text').innerText = `"${scenario.text}"`;
+            }
+
+            // Generate 4 Option Choices (1 Correct + 3 Random Distractors)
+            let choicesKeys = [targetKey];
+            while (choicesKeys.length < 4) {
+                let randomKey = keys[Math.floor(Math.random() * keys.length)];
+                if (!choicesKeys.includes(randomKey)) {
+                    choicesKeys.push(randomKey);
+                }
+            }
+
+            // Shuffle Choices
+            choicesKeys.sort(() => Math.random() - 0.5);
+
+            // Render Option Buttons
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = "";
+
+            choicesKeys.forEach(key => {
+                const btn = document.createElement('button');
+                btn.className = `btn-option w-full bg-white hover:bg-slate-50 border-2 border-slate-200 text-slate-700 font-bold py-3.5 px-3 rounded-2xl text-sm sm:text-base flex items-center justify-center gap-2 transition-all`;
+                btn.onclick = () => checkAnswer(key, btn);
+
+                // Add text or emoji
+                btn.innerHTML = `<span>${EMOTIONS[key].name}</span>`;
+                optionsContainer.appendChild(btn);
+            });
+
+            isAnsweringAllowed = true;
+            startTimer();
+        }
+
+        /* ==========================================
+           TIMER LOGIC
+           ========================================== */
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = maxTime;
+            updateTimerBar();
+
+            timerInterval = setInterval(() => {
+                timeLeft -= 0.1;
+                if (timeLeft <= 0) {
+                    timeLeft = 0;
+                    updateTimerBar();
+                    clearInterval(timerInterval);
+                    handleTimeout();
+                } else {
+                    updateTimerBar();
+                }
+            }, 100);
+        }
+
+        function updateTimerBar() {
+            const percentage = (timeLeft / maxTime) * 100;
+            const bar = document.getElementById('timer-bar');
+            bar.style.width = `${percentage}%`;
+
+            if (percentage > 50) {
+                bar.className = "bg-emerald-500 h-full transition-all duration-100 ease-linear";
+            } else if (percentage > 25) {
+                bar.className = "bg-amber-500 h-full transition-all duration-100 ease-linear";
+            } else {
+                bar.className = "bg-red-500 h-full transition-all duration-100 ease-linear animate-pulse-fast";
+            }
+        }
+
+        function handleTimeout() {
+            if (!isAnsweringAllowed) return;
+            isAnsweringAllowed = false;
+
+            playSound('wrong');
+            combo = 0;
+            updateComboBadge();
+
+            // Highlight Correct Option
+            highlightOptions(null, currentCorrectKey);
+
+            showFeedback("Waktu Habis! ⏰", false);
+
+            setTimeout(() => {
+                loadNextQuestion();
+            }, 1500);
+        }
+
+        /* ==========================================
+           ANSWER CHECKING
+           ========================================== */
+        function checkAnswer(selectedKey, clickedBtn) {
+            if (!isAnsweringAllowed) return;
+            isAnsweringAllowed = false;
+            clearInterval(timerInterval);
+
+            if (selectedKey === currentCorrectKey) {
+                // CORRECT
+                playSound('correct');
+                correctAnswersCount++;
+                combo++;
+
+                // Score Calculation: Base 100 + Time Bonus + Combo Bonus
+                const timeBonus = Math.round(timeLeft * 10);
+                const comboBonus = (combo - 1) * 20;
+                const pointsEarned = 100 + timeBonus + comboBonus;
+                score += pointsEarned;
+
+                document.getElementById('score-text').innerText = score;
+                updateComboBadge();
+
+                clickedBtn.classList.remove('bg-white', 'border-slate-200');
+                clickedBtn.classList.add('bg-emerald-500', 'text-white', 'border-emerald-600');
+
+                showFeedback(`Benar! +${pointsEarned} Poin ✨`, true);
+            } else {
+                // WRONG
+                playSound('wrong');
+                combo = 0;
+                updateComboBadge();
+
+                clickedBtn.classList.remove('bg-white', 'border-slate-200');
+                clickedBtn.classList.add('bg-red-500', 'text-white', 'border-red-600');
+
+                highlightOptions(clickedBtn, currentCorrectKey);
+
+                showFeedback(`Kurang Tepat! Itu ekspresi: ${EMOTIONS[currentCorrectKey].name}`, false);
+            }
+
+            setTimeout(() => {
+                loadNextQuestion();
+            }, 1600);
+        }
+
+        function highlightOptions(wrongBtn, correctKey) {
+            const buttons = document.querySelectorAll('#options-container button');
+            buttons.forEach(btn => {
+                if (btn.innerText.includes(EMOTIONS[correctKey].name)) {
+                    btn.classList.remove('bg-white', 'border-slate-200');
+                    btn.classList.add('bg-emerald-500', 'text-white', 'border-emerald-600', 'animate-bounce-short');
+                }
+            });
+        }
+
+        function updateComboBadge() {
+            const badge = document.getElementById('combo-badge');
+            if (combo > 1) {
+                badge.classList.remove('hidden');
+                badge.classList.add('flex');
+                document.getElementById('combo-text').innerText = `${combo}x Combo!`;
+            } else {
+                badge.classList.add('hidden');
+                badge.classList.remove('flex');
+            }
+        }
+
+        function showFeedback(text, isCorrect) {
+            const feedback = document.getElementById('feedback-banner');
+            feedback.innerText = text;
+            feedback.classList.remove('opacity-0');
+
+            if (isCorrect) {
+                feedback.className = "transition-opacity duration-200 text-center py-1.5 font-bold rounded-xl text-sm bg-emerald-100 text-emerald-800 border border-emerald-300 min-h-[28px]";
+            } else {
+                feedback.className = "transition-opacity duration-200 text-center py-1.5 font-bold rounded-xl text-sm bg-red-100 text-red-800 border border-red-300 min-h-[28px]";
+            }
+        }
+
+        /* ==========================================
+           GAME END & RESULT
+           ========================================== */
+        function finishGame() {
+            clearInterval(timerInterval);
+            playSound('win');
+
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('flex');
+            
+            const resultScreen = document.getElementById('screen-result');
+            resultScreen.classList.remove('hidden');
+            resultScreen.classList.add('flex');
+
+            const accuracy = Math.round((correctAnswersCount / totalQuestions) * 100);
+            
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-accuracy').innerText = `${accuracy}%`;
+
+            // Save High Score
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('ekspresi_highscore', highScore);
+            }
+
+            // Customize Result UI based on Performance
+            const iconContainer = document.getElementById('result-icon-container');
+            const icon = document.getElementById('result-icon');
+            const title = document.getElementById('result-title');
+            const subtitle = document.getElementById('result-subtitle');
+
+            if (accuracy >= 80) {
+                iconContainer.className = "inline-block p-4 bg-amber-100 rounded-full text-amber-500 mb-1 animate-bounce";
+                icon.className = "fa-solid fa-trophy text-6xl";
+                title.innerText = "Luar Biasa Hebat! 🎉";
+                subtitle.innerText = "Kamu adalah pakar pembaca emosi sejati!";
+                triggerConfetti();
+            } else if (accuracy >= 50) {
+                iconContainer.className = "inline-block p-4 bg-sky-100 rounded-full text-sky-500 mb-1";
+                icon.className = "fa-solid fa-thumbs-up text-6xl";
+                title.innerText = "Bagus Sekali! 👍";
+                subtitle.innerText = "Kemampuan mengenali emosimu sudah cukup baik!";
+            } else {
+                iconContainer.className = "inline-block p-4 bg-purple-100 rounded-full text-purple-500 mb-1";
+                icon.className = "fa-solid fa-face-smile text-6xl";
+                title.innerText = "Tetap Semangat! 💪";
+                subtitle.innerText = "Yuk latih lagi kepekaanmu terhadap ekspresi emosi!";
+            }
+        }
+
+        function restartGame() {
+            startGame(currentGameMode);
+        }
+
+        /* ==========================================
+           CONFETTI ANIMATION EFFECT
+           ========================================== */
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+
+            for (let i = 0; i < 80; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.7) * 12,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 8 + 4,
+                    gravity: 0.2,
+                    alpha: 1
+                });
+            }
+
+            function animateConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let alive = false;
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += p.gravity;
+                    p.alpha -= 0.015;
+
+                    if (p.alpha > 0) {
+                        alive = true;
+                        ctx.globalAlpha = p.alpha;
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                if (alive) {
+                    requestAnimationFrame(animateConfetti);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            animateConfetti();
+        }
+
+        // Window resize event for canvas
+        window.addEventListener('resize', () => {
+            const canvas = document.getElementById('confetti-canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Initialize on load
+        window.onload = function() {
+            showMenu();
+        };
+    </script>
+</body>
+</html>
